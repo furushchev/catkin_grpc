@@ -19,11 +19,12 @@ set(GRPC_BUILD_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/grpc_install)
 ExternalProject_Add(
   build_grpc
   PREFIX grpc
-  GIT_REPOSITORY "https://github.com/grpc/grpc.git"
-  GIT_TAG v1.48.4
-  GIT_CONFIG submodule.recurse=1 submodule.fetchJobs=10
-  GIT_SHALLOW 1
-  SOURCE_DIR grpc_build
+  # GIT_REPOSITORY "https://github.com/grpc/grpc.git"
+  # GIT_TAG v1.48.4
+  # GIT_CONFIG submodule.recurse=1 submodule.fetchJobs=10
+  # GIT_SHALLOW 1
+  # SOURCE_DIR grpc_build
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/grpc
   CMAKE_ARGS
   -DBUILD_SHARED_LIBS=ON
   -DBUILD_TESTING=OFF
@@ -39,7 +40,7 @@ ExternalProject_Add(
   -Dprotobuf_BUILD_SHARED_LIBS=OFF
   -Dprotobuf_BUILD_TESTS=OFF
   -Dprotobuf_WITH_ZLIB=ON
-  BUILD_IN_SOURCE 1
+  # BUILD_IN_SOURCE 1
 )
 
 set(GRPC_INCLUDE_DESTINATION
