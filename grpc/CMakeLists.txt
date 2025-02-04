@@ -15,8 +15,7 @@ if(NOT RSYNC)
   message(SEND_ERROR "Cannot find rsync.")
 endif(NOT RSYNC)
 
-# set(GRPC_BUILD_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/grpc_build")
-set(GRPC_BUILD_SOURCE_DIR "${CMAKE_SOURCE_DIR}/grpc")
+set(GRPC_BUILD_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/grpc_build")
 set(GRPC_BUILD_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/grpc_install)
 ExternalProject_Add(
   build_grpc
@@ -25,8 +24,11 @@ ExternalProject_Add(
   # GIT_TAG v1.48.4
   # GIT_CONFIG submodule.recurse=1 submodule.fetchJobs=10
   # GIT_SHALLOW 1
-  # SOURCE_DIR grpc_build
-  SOURCE_DIR ${GRPC_BUILD_SOURCE_DIR}
+  SOURCE_DIR grpc_build
+  DOWNLOAD_COMMAND
+  ${RSYNC}
+  --prune-empty-dirs --archive
+  ${CMAKE_SOURCE_DIR}/grpc/ ${GRPC_BUILD_SOURCE_DIR}/
   CMAKE_ARGS
   -DBUILD_SHARED_LIBS=ON
   -DBUILD_TESTING=OFF
