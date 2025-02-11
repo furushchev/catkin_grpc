@@ -17,7 +17,10 @@ set(GRPC_BIN_DIR ${grpc_PREFIX}/${CATKIN_GLOBAL_LIBEXEC_DESTINATION}/grpc)
 
 unset(PROTOBUF_PROTOC_EXECUTABLE CACHE)
 find_program(PROTOBUF_PROTOC_EXECUTABLE protoc
-             PATHS ${GRPC_BIN_DIR}/protobuf NO_DEFAULT_PATH)
+  PATHS
+  ${GRPC_BIN_DIR}
+  ${GRPC_BIN_DIR}/protobuf
+  NO_DEFAULT_PATH)
 message(STATUS "Found protoc at: ${PROTOBUF_PROTOC_EXECUTABLE}")
 
 unset(GRPC_CPP_PLUGIN CACHE)
@@ -32,38 +35,87 @@ message(STATUS "Found grpc_python_plugin at: ${GRPC_PYTHON_PLUGIN}")
 
 set(GRPC_LIB_DIR ${grpc_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION})
 find_library(
-    LIBPROTOBUF libprotobuf.a PATHS ${GRPC_LIB_DIR}/protobuf NO_DEFAULT_PATH)
-find_library(LIBZ z PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+  LIBPROTOBUF protobuf
+  PATHS
+  ${GRPC_LIB_DIR}
+  ${GRPC_LIB_DIR}/protobuf
+  NO_DEFAULT_PATH
+  REQUIRED)
+find_library(LIBZ z PATHS ${GRPC_LIB_DIR} REQUIRED)
 
 set(ALL_PROTOBUF_LIBS ${LIBPROTOBUF} ${LIBZ})
-message(STATUS "Found protobuf libraries: ${ALL_PROTOBUF_LIBS}")
+message(STATUS "Found protobuf libraries at: ${ALL_PROTOBUF_LIBS}")
+
+find_library(LIBGRPC_ABSEIL grpc_abseil PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+if(LIBGRPC_ABSEIL)
+  list(APPEND ALL_GRPC_LIBS "${LIBGRPC_ABSEIL}")
+else()
+  # If grpc is built using cmake, the ABSL libraries are splited into multiple libabsl_*.so
+  file(GLOB LIBABSL_FILES "${GRPC_LIB_DIR}/libabsl_*.so")
+  foreach(LIBABSL_FILE IN LISTS LIBABSL_FILES)
+    get_filename_component(LIBABSL_NAME "${LIBABSL_FILE}" NAME_WE)
+    string(REPLACE "lib" "" LIBABSL_NAME "${LIBABSL_NAME}")
+    string(TOUPPER "${LIBABSL_NAME}" LIBABSL_NAME_UPPER)
+    find_library("LIB${LIBABSL_NAME_UPPER}" "${LIBABSL_NAME}" PATHS "${GRPC_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
+    list(APPEND ALL_GRPC_LIBS "${LIB${LIBABSL_NAME_UPPER}}")
+  endforeach()
+endif()
 
 find_library(LIBARES ares PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBBORINGSSL boringssl PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGPR gpr PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPC grpc PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP grpc++ PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPC_CRONET grpc_cronet PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP_CORE_STATS grpc++_core_stats
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP_CRONET grpc++_cronet
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP_ERROR_DETAILS grpc++_error_details
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPC_PLUGIN_SUPPORT grpc_plugin_support
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP_REFLECTION grpc++_reflection
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPC_UNSECURE grpc_unsecure
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
-find_library(LIBGRPCPP_UNSECURE grpc++_unsecure
-             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+if(LIBARES)
+  list(APPEND ALL_GRPC_LIBS "${LIBARES}")
+else()
+  # If grpc is built using cmake, the library name is libcares
+  find_library(LIBCARES cares PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+  list(APPEND ALL_GRPC_LIBS "${LIBCARES}")
+endif()
 
-set(ALL_GRPC_LIBS ${LIBARES} ${LIBBORINGSSL} ${LIBGPR} ${LIBGRPC} ${LIBGRPCPP}
-    ${LIBGRPC_CRONET} ${LIBGRPCPP_CRONET} ${LIBGRPCPP_CORE_STATS}
-    ${LIBGRPCPP_ERROR_DETAILS} ${LIBGRPC_PLUGIN_SUPPORT} ${LIBGRPCPP_REFLECTION}
-    ${LIBGRPC_UNSECURE} ${LIBGRPCPP_UNSECURE})
-message(STATUS "Found grpc libraries: ${ALL_GRPC_LIBS}")
+find_library(LIBBORINGSSL boringssl PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+if(LIBBORINGSSL)
+  list(APPEND ALL_GRPC_LIBS "${LIBBORINGSSL}")
+else()
+  # If grpc is built using cmake, the library name is libssl and libcrypto
+  find_library(LIBSSL ssl PATHS ${GRPC_LIB_DIR} REQUIRED)
+  list(APPEND ALL_GRPC_LIBS "${LIBSSL}")
+  find_library(LIBCRYPTO crypto PATHS  ${GRPC_LIB_DIR} REQUIRED)
+  list(APPEND ALL_GRPC_LIBS "${LIBCRYPTO}")
+endif()
+
+find_library(LIBADDRESS_SORTING address_sorting PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBADDRESS_SORTING}")
+find_library(LIBGPR gpr PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGPR}")
+find_library(LIBGRPC grpc PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPC}")
+find_library(LIBGRPCPP grpc++ PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP}")
+find_library(LIBGRPCPP_ALTS grpc++_alts PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP_ALTS}")
+find_library(LIBGRPCPP_ERROR_DETAILS grpc++_error_details
+  PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP_ERROR_DETAILS}")
+find_library(LIBGRPC_PLUGIN_SUPPORT grpc_plugin_support
+  PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPC_PLUGIN_SUPPORT}")
+find_library(LIBGRPCPP_CHANNELZ grpcpp_channelz
+  PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP_CHANNELZ}")
+find_library(LIBGRPCPP_REFLECTION grpc++_reflection
+  PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP_REFLECTION}")
+find_library(LIBGRPC_UNSECURE grpc_unsecure
+  PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPC_UNSECURE}")
+find_library(LIBGRPCPP_UNSECURE grpc++_unsecure
+             PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBGRPCPP_UNSECURE}")
+find_library(LIBRE2 re2 PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBRE2}")
+find_library(LIBUPB upb PATHS ${GRPC_LIB_DIR} NO_DEFAULT_PATH REQUIRED)
+list(APPEND ALL_GRPC_LIBS "${LIBUPB}")
+
+list(REMOVE_DUPLICATES ALL_GRPC_LIBS)
+message(STATUS "Found grpc libraries at: ${ALL_GRPC_LIBS}")
 
 set(GRPC_INCLUDE_DIR
     ${grpc_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/grpc)
@@ -174,12 +226,14 @@ function(generate_proto PROTO_TARGET_NAME)
       list(APPEND INCLUDE_DIRS_ARGS "-I${ABS_INCLUDE_DIR}")
     endforeach(INCLUDE_DIR)
 
+    get_filename_component(ABS_SRC_RELATIVE_BASE_DIR ${SRC_RELATIVE_BASE_DIR} ABSOLUTE)
+
     add_custom_command(
       OUTPUT ${DEST_STAMP_FILE}
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
         ARGS --cpp_out=${GENERATE_PROTO_CC_OUTPUT_DIR}
              --python_out=${GENERATE_PROTO_PY_OUTPUT_DIR}
-             -I${SRC_RELATIVE_BASE_DIR}
+             -I${ABS_SRC_RELATIVE_BASE_DIR}
              -I${GRPC_INCLUDE_DIR}
              ${INCLUDE_DIRS_ARGS}
              ${PROTOC_EXTRA_ARGS}
